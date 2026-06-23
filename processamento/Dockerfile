@@ -13,7 +13,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Driver JDBC usado pelo Spark pra gravar os agregados no Postgres
 RUN curl -L -o /opt/postgresql-jdbc.jar \
     https://jdbc.postgresql.org/download/postgresql-42.7.3.jar
 
