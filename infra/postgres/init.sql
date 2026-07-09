@@ -71,8 +71,26 @@ INSERT INTO gold.dim_idioma (codigo, descricao) VALUES
     ('cs', 'Tcheco'),    ('fi', 'Finlandês'), ('da', 'Dinamarquês'),
     ('no', 'Norueguês'), ('hu', 'Húngaro'),   ('ro', 'Romeno'),
     ('el', 'Grego'),     ('he', 'Hebraico'),  ('ca', 'Catalão'),
+    ('ne', 'Nepalês'),
     ('und', 'Indefinido'), ('outro', 'Outro'), ('na', 'Não aplicável')
 ON CONFLICT DO NOTHING;
+
+
+-- ===================== GOLD: lista de bloqueio (+18) =====================
+-- Termos/domínios impróprios filtrados na leitura (dashboard). A lista é dado,
+-- não código: carregada de um seed externo (seeds/termo_bloqueado.csv, fora do
+-- git). Escopo 'termo' cobre palavra e hashtag; 'dominio' casa por sufixo.
+CREATE TABLE IF NOT EXISTS gold.termo_bloqueado (
+    termo   TEXT NOT NULL,
+    escopo  TEXT NOT NULL,
+    PRIMARY KEY (termo, escopo)
+);
+DO $$
+BEGIN
+    IF pg_stat_file('/seeds/termo_bloqueado.csv', true) IS NOT NULL THEN
+        COPY gold.termo_bloqueado FROM '/seeds/termo_bloqueado.csv' WITH (FORMAT csv, HEADER true);
+    END IF;
+END $$;
 
 
 -- ===================== GOLD: fato eventos (principal) =====================
@@ -91,17 +109,17 @@ CREATE INDEX IF NOT EXISTS idx_fato_eventos_janela ON gold.fato_eventos (janela_
 
 
 -- ===================== GOLD: fato palavra =====================
--- Grão: janela de 30s × idioma × palavra.
+-- Grão: janela de 30s × idioma × palavra (top-N por janela). Particionada por
+-- dia; partições e retenção gerenciadas pelo Spark, igual à silver.
 CREATE TABLE IF NOT EXISTS gold.fato_palavra (
-    id             BIGSERIAL PRIMARY KEY,
     janela_inicio  TIMESTAMPTZ NOT NULL,
     janela_fim     TIMESTAMPTZ NOT NULL,
     idioma         TEXT NOT NULL,
     palavra        TEXT NOT NULL,
     qtd            INTEGER NOT NULL,
-    UNIQUE (janela_inicio, idioma, palavra)
-);
-CREATE INDEX IF NOT EXISTS idx_fato_palavra_janela ON gold.fato_palavra (janela_inicio);
+    PRIMARY KEY (janela_inicio, idioma, palavra)
+) PARTITION BY RANGE (janela_inicio);
+CREATE TABLE IF NOT EXISTS gold.fato_palavra_default PARTITION OF gold.fato_palavra DEFAULT;
 
 
 -- ===================== GOLD: fato hashtag =====================
