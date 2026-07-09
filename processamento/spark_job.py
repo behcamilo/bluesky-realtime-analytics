@@ -4,9 +4,10 @@ from datetime import date, datetime, timedelta
 import psycopg2
 from psycopg2.extras import execute_values
 from pyspark.sql import SparkSession
+from pyspark.sql.window import Window
 from pyspark.sql.functions import (
     from_json, col, window, count, to_timestamp, when, lit, coalesce,
-    element_at, explode, split, lower, regexp_replace, length, expr,
+    element_at, explode, split, lower, regexp_replace, length, expr, row_number,
 )
 from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType, ArrayType,
@@ -106,7 +107,8 @@ df_silver = (
         col("did").alias("autor_did"),
         col("idioma"),
         col("tipo_conteudo"),
-        col("texto"),
+        # Postgres não aceita 0x00 em texto UTF-8; remove antes de gravar.
+        regexp_replace(col("texto"), "\\x00", "").alias("texto"),
     )
 )
 
@@ -191,6 +193,9 @@ fato_dominio = agregar_termos(dominios, "dominio")
 
 _ultima_manutencao = None
 
+# Tabelas particionadas por dia (mesma retenção da silver).
+PARTICIONADAS = [("silver", "eventos"), ("gold", "fato_palavra")]
+
 
 def manter_particoes():
     """Cria as partições de ontem/hoje e dropa as mais antigas que a retenção."""
@@ -199,24 +204,26 @@ def manter_particoes():
     conn = psycopg2.connect(**PG_CONN)
     try:
         with conn, conn.cursor() as cur:
-            for delta in (1, 0):
-                d = hoje - timedelta(days=delta)
+            for schema, tabela in PARTICIONADAS:
+                for delta in (1, 0):
+                    d = hoje - timedelta(days=delta)
+                    cur.execute(
+                        f"CREATE TABLE IF NOT EXISTS {schema}.{tabela}_{d:%Y%m%d} "
+                        f"PARTITION OF {schema}.{tabela} "
+                        f"FOR VALUES FROM ('{d}') TO ('{d + timedelta(days=1)}')"
+                    )
                 cur.execute(
-                    f"CREATE TABLE IF NOT EXISTS silver.eventos_{d:%Y%m%d} "
-                    f"PARTITION OF silver.eventos "
-                    f"FOR VALUES FROM ('{d}') TO ('{d + timedelta(days=1)}')"
+                    "SELECT c.relname FROM pg_inherits i "
+                    "JOIN pg_class c ON c.oid = i.inhrelid "
+                    "JOIN pg_class p ON p.oid = i.inhparent "
+                    "JOIN pg_namespace n ON n.oid = p.relnamespace "
+                    "WHERE n.nspname = %s AND p.relname = %s "
+                    "AND c.relname ~ %s",
+                    (schema, tabela, f"^{tabela}_[0-9]{{8}}$"),
                 )
-            cur.execute(
-                "SELECT c.relname FROM pg_inherits i "
-                "JOIN pg_class c ON c.oid = i.inhrelid "
-                "JOIN pg_class p ON p.oid = i.inhparent "
-                "JOIN pg_namespace n ON n.oid = p.relnamespace "
-                "WHERE n.nspname='silver' AND p.relname='eventos' "
-                "AND c.relname ~ '^eventos_[0-9]{8}$'"
-            )
-            for (relname,) in cur.fetchall():
-                if datetime.strptime(relname[-8:], "%Y%m%d").date() < corte:
-                    cur.execute(f"DROP TABLE IF EXISTS silver.{relname}")
+                for (relname,) in cur.fetchall():
+                    if datetime.strptime(relname[-8:], "%Y%m%d").date() < corte:
+                        cur.execute(f"DROP TABLE IF EXISTS {schema}.{relname}")
     finally:
         conn.close()
 
@@ -245,8 +252,8 @@ def gravar_silver(batch_df, batch_id):
     )
 
 
-def fazer_upsert(tabela, colunas, chave):
-    """UPSERT por janela (ON CONFLICT) — evita duplicar no modo update."""
+def fazer_upsert(tabela, colunas, chave, top_n=None):
+    """UPSERT por janela (ON CONFLICT). top_n mantém só os N maiores por janela/idioma."""
     cols_sql = ", ".join(colunas)
     chave_sql = ", ".join(chave)
     set_sql = ", ".join(f"{c} = EXCLUDED.{c}" for c in colunas if c not in chave)
@@ -256,6 +263,13 @@ def fazer_upsert(tabela, colunas, chave):
     )
 
     def gravar(batch_df, batch_id):
+        if top_n:
+            ranking = Window.partitionBy("janela_inicio", "idioma").orderBy(col("qtd").desc())
+            batch_df = (
+                batch_df.withColumn("_rk", row_number().over(ranking))
+                .filter(col("_rk") <= top_n)
+                .drop("_rk")
+            )
         linhas = [tuple(row[c] for c in colunas) for row in batch_df.collect()]
         if not linhas:
             return
@@ -279,9 +293,9 @@ saidas = [
     (fato_eventos, "fato_eventos", "update",
      fazer_upsert("gold.fato_eventos", COLS_EVENTOS,
                   ["janela_inicio", "tipo_evento", "idioma", "tipo_conteudo"])),
-    (fato_palavra, "fato_palavra", "update",
+    (fato_palavra, "fato_palavra", "append",
      fazer_upsert("gold.fato_palavra", ["janela_inicio", "janela_fim", "idioma", "palavra", "qtd"],
-                  ["janela_inicio", "idioma", "palavra"])),
+                  ["janela_inicio", "idioma", "palavra"], top_n=50)),
     (fato_hashtag, "fato_hashtag", "update",
      fazer_upsert("gold.fato_hashtag", ["janela_inicio", "janela_fim", "idioma", "hashtag", "qtd"],
                   ["janela_inicio", "idioma", "hashtag"])),
