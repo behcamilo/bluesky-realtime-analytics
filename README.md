@@ -27,6 +27,12 @@ Spark e visualização em dashboards no Grafana.
 | Visualização | Grafana | Exibe os dados em dashboard com atualização automática |
 
 
+## Fonte de dados
+
+Este projeto utiliza o [Bluesky Jetstream](https://github.com/bluesky-social/jetstream) 
+como fonte de dados.
+
+
 ## Fluxos de comunicação
 
 **1 → coleta stream - WSS JSON**  
@@ -45,12 +51,6 @@ O Pyspark escreve os dados processados (transformação e agregação) no Postgr
 O Grafana executa busca no PostgreSQL para atualizar o dashboard.
 
 O detalhamento de cada interface (formato das mensagens, contratos e acoplamento) está em [INTERFACES.md](INTERFACES.md).
-
-
-## Fonte de dados
-
-Este projeto utiliza o [Bluesky Jetstream](https://github.com/bluesky-social/jetstream) 
-como fonte de dados.
 
 
 ## Como executar
@@ -84,3 +84,10 @@ Além do Docker, os componentes em Python usam as seguintes bibliotecas não pad
 | Processamento | psycopg2-binary | driver PostgreSQL (upsert na gold) |
 
 A infraestrutura (Apache Kafka, PostgreSQL e Grafana) roda via imagens Docker.
+
+
+## Dashboard
+
+Métricas em tempo real da atividade do Bluesky (camada gold) no Grafana.
+
+![Dashboard no Grafana](dashboard.png)
