@@ -1,0 +1,219 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "description": "Atividade do Bluesky em tempo real (camada gold).",
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#c3c2b7" }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "colorMode": "value", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto", "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Total de eventos",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT SUM(qtd) AS qtd FROM gold.fato_eventos WHERE $__timeFilter(janela_inicio)", "refId": "A" }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3987e5" }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 0 },
+      "id": 2,
+      "options": {
+        "colorMode": "value", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto", "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Publicações",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT SUM(qtd) AS qtd FROM gold.fato_eventos WHERE $__timeFilter(janela_inicio) AND tipo_evento='post'", "refId": "A" }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#199e70" }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 0 },
+      "id": 3,
+      "options": {
+        "colorMode": "value", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto", "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Curtidas",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT SUM(qtd) AS qtd FROM gold.fato_eventos WHERE $__timeFilter(janela_inicio) AND tipo_evento='like'", "refId": "A" }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#c98500" }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 16, "y": 0 },
+      "id": 4,
+      "options": {
+        "colorMode": "value", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto", "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Republicações",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT SUM(qtd) AS qtd FROM gold.fato_eventos WHERE $__timeFilter(janela_inicio) AND tipo_evento='repost'", "refId": "A" }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#008300" }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 20, "y": 0 },
+      "id": 5,
+      "options": {
+        "colorMode": "value", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto", "textMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "title": "Novos seguidores",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT SUM(qtd) AS qtd FROM gold.fato_eventos WHERE $__timeFilter(janela_inicio) AND tipo_evento='follow'", "refId": "A" }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "#3987e5" }, "custom": { "axisBorderShow": false, "fillOpacity": 90, "lineWidth": 0 }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "id": 6,
+      "options": {
+        "barWidth": 0.75, "legend": { "displayMode": "hidden", "showLegend": false },
+        "orientation": "horizontal", "showValue": "auto", "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "title": "Posts por idioma",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT COALESCE(di.descricao, 'Outro') AS idioma, SUM(f.qtd) AS qtd FROM gold.fato_eventos f LEFT JOIN gold.dim_idioma di ON di.codigo = f.idioma WHERE $__timeFilter(f.janela_inicio) AND f.tipo_evento = 'post' GROUP BY 1 ORDER BY 2 DESC LIMIT 10", "refId": "A" }
+      ],
+      "type": "barchart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Texto" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3987e5" } }] },
+          { "matcher": { "id": "byName", "options": "Imagem" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#199e70" } }] },
+          { "matcher": { "id": "byName", "options": "Link" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#c98500" } }] },
+          { "matcher": { "id": "byName", "options": "Citação" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#008300" } }] },
+          { "matcher": { "id": "byName", "options": "Vídeo" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#9085e9" } }] }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "id": 7,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] },
+        "pieType": "donut", "reduceOptions": { "calcs": [], "fields": "", "values": true },
+        "tooltip": { "mode": "single", "sort": "none" }, "displayLabels": ["percent"]
+      },
+      "title": "Posts por tipo de conteúdo",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT tc.descricao AS conteudo, SUM(f.qtd) AS qtd FROM gold.fato_eventos f JOIN gold.dim_tipo_conteudo tc ON tc.codigo = f.tipo_conteudo WHERE $__timeFilter(f.janela_inicio) AND f.tipo_evento = 'post' GROUP BY 1 ORDER BY 2 DESC", "refId": "A" }
+      ],
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "#3987e5" }, "custom": { "axisBorderShow": false, "fillOpacity": 90, "lineWidth": 0 }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 11, "w": 8, "x": 0, "y": 15 },
+      "id": 8,
+      "options": {
+        "barWidth": 0.8, "legend": { "displayMode": "hidden", "showLegend": false },
+        "orientation": "horizontal", "showValue": "auto", "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "title": "Top palavras",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT palavra, SUM(qtd) AS qtd FROM gold.fato_palavra WHERE $__timeFilter(janela_inicio) AND ('${mostrar18}' = '0' OR lower(palavra) NOT IN (SELECT termo FROM gold.termo_bloqueado WHERE escopo = 'termo')) GROUP BY palavra ORDER BY qtd DESC LIMIT 15", "refId": "A" }
+      ],
+      "type": "barchart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "#3987e5" }, "custom": { "axisBorderShow": false, "fillOpacity": 90, "lineWidth": 0 }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 11, "w": 8, "x": 8, "y": 15 },
+      "id": 9,
+      "options": {
+        "barWidth": 0.8, "legend": { "displayMode": "hidden", "showLegend": false },
+        "orientation": "horizontal", "showValue": "auto", "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "title": "Top hashtags",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT hashtag, SUM(qtd) AS qtd FROM gold.fato_hashtag WHERE $__timeFilter(janela_inicio) AND ('${mostrar18}' = '0' OR lower(hashtag) NOT IN (SELECT termo FROM gold.termo_bloqueado WHERE escopo = 'termo')) GROUP BY hashtag ORDER BY qtd DESC LIMIT 15", "refId": "A" }
+      ],
+      "type": "barchart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "bluesky_pg" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "#3987e5" }, "custom": { "axisBorderShow": false, "fillOpacity": 90, "lineWidth": 0 }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 11, "w": 8, "x": 16, "y": 15 },
+      "id": 10,
+      "options": {
+        "barWidth": 0.8, "legend": { "displayMode": "hidden", "showLegend": false },
+        "orientation": "horizontal", "showValue": "auto", "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "title": "Top domínios",
+      "targets": [
+        { "datasource": { "type": "postgres", "uid": "bluesky_pg" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT dominio, SUM(qtd) AS qtd FROM gold.fato_dominio WHERE $__timeFilter(janela_inicio) AND ('${mostrar18}' = '0' OR NOT EXISTS (SELECT 1 FROM gold.termo_bloqueado b WHERE b.escopo = 'dominio' AND (lower(dominio) = b.termo OR lower(dominio) LIKE '%.' || b.termo))) GROUP BY dominio ORDER BY qtd DESC LIMIT 15", "refId": "A" }
+      ],
+      "type": "barchart"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["bluesky"],
+  "templating": { "list": [
+    {
+      "name": "mostrar18",
+      "label": "Conteúdo +18",
+      "type": "custom",
+      "query": "Ocultar : 1, Mostrar : 0",
+      "current": { "text": "Ocultar", "value": "1", "selected": true },
+      "options": [
+        { "text": "Ocultar", "value": "1", "selected": true },
+        { "text": "Mostrar", "value": "0", "selected": false }
+      ],
+      "includeAll": false, "multi": false
+    }
+  ] },
+  "time": { "from": "now-3h", "to": "now" },
+  "timepicker": {},
+  "title": "Bluesky - Fatos",
+  "uid": "bluesky-fatos",
+  "version": 9,
+  "weekStart": ""
+}
