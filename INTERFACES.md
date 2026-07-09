@@ -47,11 +47,11 @@ O Spark se inscreve no mesmo tópico e processa as mensagens em lotes a cada 15s
 voltar, retoma daquele ponto, sem perder nem repetir mensagens.
 
 ## 4. Spark para Postgres
-Escrita via JDBC (`postgres:5432`), nos schemas `silver` e `gold`. O contrato é o esquema
+Escrita SQL (`postgres:5432`) nos schemas `silver` e `gold`. O contrato é o esquema
 das tabelas (`infra/postgres/init.sql`):
-- `silver.eventos`: append (posts limpos).
-- `gold.fato_eventos` e os fatos de termo (palavra, hashtag, dominio): upsert, então
-  reprocessar não duplica.
+- `silver.eventos`: append via JDBC (posts limpos).
+- `gold.fato_eventos` e os fatos de termo (palavra, hashtag, dominio): upsert via psycopg2
+  (`INSERT ... ON CONFLICT`), então reprocessar não duplica.
 
 ## 5. Postgres para Grafana
 O Grafana consulta por SQL. A interface de leitura expõe a camada `gold` (painéis
@@ -60,7 +60,7 @@ agregados) e a `silver` (painel de detalhe, post a post):
 | Tabela / objeto | Conteúdo |
 |---|---|
 | `fato_eventos` | contagem por janela de tempo × tipo × idioma × tipo de conteúdo |
-| `fato_palavra` / `fato_hashtag` / `fato_dominio` | top termos por janela de tempo × idioma |
+| `fato_palavra` / `fato_hashtag` / `fato_dominio` | contagem de termos por janela de tempo × idioma (palavra no top-50) |
 | `dim_tipo_evento` / `dim_idioma` / `dim_tipo_conteudo` | tabela de tipos, código → descrição |
 | `dim_tempo` (view) | atributos de tempo (hora, dia, período) |
 | `silver.eventos` | posts individuais (texto, idioma, conteúdo) |
