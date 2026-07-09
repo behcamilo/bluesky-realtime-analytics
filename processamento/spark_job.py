@@ -1,3 +1,14 @@
+"""
+Processamento em streaming dos eventos do Bluesky.
+
+Lê o tópico Kafka, limpa e enriquece os eventos (camada silver) e agrega em
+esquema estrela (camada gold) no PostgreSQL, com escrita idempotente.
+
+Autor: Beatriz
+Criado em: 23/06/2026
+Atualizado em: 08/07/2026
+"""
+
 import os
 from datetime import date, datetime, timedelta
 
@@ -141,7 +152,14 @@ df_posts = df_silver.filter((col("tipo_evento") == "post") & col("texto").isNotN
 
 
 def agregar_termos(df_termos, coluna):
-    """Conta termos por janela de 30s × idioma."""
+    """Conta termos por janela de 30s × idioma.
+
+    Parâmetros:
+        df_termos: DataFrame com a coluna de termo já extraída.
+        coluna (str): nome da coluna de termo (palavra, hashtag ou dominio).
+    Retorna:
+        DataFrame agregado com janela_inicio, janela_fim, idioma, <coluna>, qtd.
+    """
     return (
         df_termos
         .withWatermark("event_ts", "1 minute")
@@ -206,11 +224,11 @@ def manter_particoes():
         with conn, conn.cursor() as cur:
             for schema, tabela in PARTICIONADAS:
                 for delta in (1, 0):
-                    d = hoje - timedelta(days=delta)
+                    dia = hoje - timedelta(days=delta)
                     cur.execute(
-                        f"CREATE TABLE IF NOT EXISTS {schema}.{tabela}_{d:%Y%m%d} "
+                        f"CREATE TABLE IF NOT EXISTS {schema}.{tabela}_{dia:%Y%m%d} "
                         f"PARTITION OF {schema}.{tabela} "
-                        f"FOR VALUES FROM ('{d}') TO ('{d + timedelta(days=1)}')"
+                        f"FOR VALUES FROM ('{dia}') TO ('{dia + timedelta(days=1)}')"
                     )
                 cur.execute(
                     "SELECT c.relname FROM pg_inherits i "
@@ -229,7 +247,14 @@ def manter_particoes():
 
 
 def gravar_silver(batch_df, batch_id):
-    """Append dos posts na silver; garante partição/retenção 1x por dia."""
+    """Handler de foreachBatch: grava os posts do lote na silver (append via JDBC).
+
+    Roda a manutenção de partições/retenção uma vez por dia.
+
+    Parâmetros:
+        batch_df: DataFrame do micro-batch (posts limpos).
+        batch_id: identificador do lote fornecido pelo Spark.
+    """
     global _ultima_manutencao
     if batch_df.isEmpty():
         return
@@ -253,7 +278,16 @@ def gravar_silver(batch_df, batch_id):
 
 
 def fazer_upsert(tabela, colunas, chave, top_n=None):
-    """UPSERT por janela (ON CONFLICT). top_n mantém só os N maiores por janela/idioma."""
+    """Cria um handler de foreachBatch que faz UPSERT no Postgres (ON CONFLICT).
+
+    Parâmetros:
+        tabela (str): destino no formato schema.tabela.
+        colunas (list[str]): colunas a inserir.
+        chave (list[str]): colunas do ON CONFLICT.
+        top_n (int | None): se definido, mantém só os N maiores por janela/idioma.
+    Retorna:
+        função (batch_df, batch_id) para usar no foreachBatch.
+    """
     cols_sql = ", ".join(colunas)
     chave_sql = ", ".join(chave)
     set_sql = ", ".join(f"{c} = EXCLUDED.{c}" for c in colunas if c not in chave)
@@ -263,6 +297,7 @@ def fazer_upsert(tabela, colunas, chave, top_n=None):
     )
 
     def gravar(batch_df, batch_id):
+        """Aplica o top_n (se houver) e faz o UPSERT do lote no Postgres."""
         if top_n:
             ranking = Window.partitionBy("janela_inicio", "idioma").orderBy(col("qtd").desc())
             batch_df = (

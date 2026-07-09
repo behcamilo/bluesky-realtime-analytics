@@ -1,3 +1,14 @@
+"""
+Coletor de eventos do Bluesky.
+
+Conecta no Jetstream via WebSocket, normaliza cada evento (post, like, repost,
+follow) e publica no tópico Kafka.
+
+Autor: Beatriz
+Criado em: 23/06/2026
+Atualizado em: 08/07/2026
+"""
+
 import os
 import json
 import asyncio
@@ -21,19 +32,35 @@ producer = Producer({"bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS})
 
 
 def delivery_report(err, msg):
+    """Callback de entrega do Kafka; registra falha de publicação.
+
+    Parâmetros:
+        err: erro de entrega (None se publicou com sucesso).
+        msg: mensagem entregue pelo produtor.
+    """
     if err is not None:
         print(f"[ERRO] Falha ao publicar: {err}", flush=True)
 
 
 def montar_url():
-    """Acrescenta os wantedCollections como query params na URL do Jetstream."""
+    """Monta a URL do Jetstream com as coleções de interesse como query params.
+
+    Retorna:
+        str: URL final do WebSocket.
+    """
     params = "&".join(f"wantedCollections={c}" for c in COLLECTION_TO_TIPO)
     separador = "&" if "?" in JETSTREAM_URL else "?"
     return f"{JETSTREAM_URL}{separador}{params}"
 
 
 def processar(raw):
-    """Normaliza um evento do Jetstream e publica no Kafka."""
+    """Normaliza um evento JSON do Jetstream e publica no Kafka.
+
+    Descarta o que não for um commit de criação de post/like/repost/follow.
+
+    Parâmetros:
+        raw: mensagem crua (str/bytes) recebida do WebSocket.
+    """
     try:
         msg = json.loads(raw)
     except json.JSONDecodeError:
@@ -71,6 +98,10 @@ def processar(raw):
 
 
 async def consumir():
+    """Loop principal: conecta no Jetstream e processa os eventos recebidos.
+
+    Reconecta sozinho caso a conexão WebSocket caia.
+    """
     url = montar_url()
     print(f"Coletor iniciado. bootstrap={KAFKA_BOOTSTRAP_SERVERS} topic={KAFKA_TOPIC}", flush=True)
     print(f"Conectando no Jetstream: {url}", flush=True)

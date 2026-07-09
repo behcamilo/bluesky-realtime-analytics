@@ -62,9 +62,25 @@ cp .env.example .env        # ajuste as senhas se quiser
 docker compose up -d --build
 ```
 
+O `--build` compila as imagens Docker do coletor e do processamento (não há passo de compilação à parte).
+
 | Serviço | URL |
 |---|---|
 | Grafana (dashboard) | http://localhost:3000 |
 | Kafka UI | http://localhost:8080 |
 
 O dashboard tem um filtro opcional de conteúdo impróprio. Para ativar, copie `infra/postgres/seeds/termo_bloqueado.csv.example` para `termo_bloqueado.csv` e preencha com os termos a bloquear.
+
+
+## Bibliotecas
+
+Além do Docker, os componentes em Python usam as seguintes bibliotecas não padrão:
+
+| Componente | Biblioteca | Uso |
+|---|---|---|
+| Coletor | confluent-kafka | cliente Kafka (publica os eventos) |
+| Coletor | websockets | conexão WebSocket com o Jetstream |
+| Processamento | pyspark | processamento em streaming |
+| Processamento | psycopg2-binary | driver PostgreSQL (upsert na gold) |
+
+A infraestrutura (Apache Kafka, PostgreSQL e Grafana) roda via imagens Docker.

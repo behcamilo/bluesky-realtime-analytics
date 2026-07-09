@@ -1,8 +1,13 @@
-
--- Arquitetura medalhão: 
--- bronze = Kafka (cru)
--- silver = eventos limpos,
--- gold   =  esquema estrela agregado para os dashboards.
+-- ============================================================
+-- Esquema do banco (arquitetura medalhão + estrela):
+--   bronze = Kafka (cru)
+--   silver = eventos limpos
+--   gold   = esquema estrela agregado para os dashboards
+--
+-- Autor: Beatriz
+-- Criado em: 23/06/2026
+-- Atualizado em: 08/07/2026
+-- ============================================================
 
 CREATE SCHEMA IF NOT EXISTS silver;
 CREATE SCHEMA IF NOT EXISTS gold;
